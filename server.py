@@ -16,7 +16,17 @@ LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET")
 if not all([LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET]):
     print("Warning: LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET must be set in your .env file")
 
-app = FastAPI(title="ADA LiveKit Server")
+app = FastAPI(title="L.I.S.A Command Center API")
+
+# Mount static files (Frontend)
+from fastapi.staticfiles import StaticFiles
+import os
+
+# Create frontend directory if it doesn't exist
+if not os.path.exists("frontend"):
+    os.makedirs("frontend")
+
+app.mount("/command-center", StaticFiles(directory="frontend", html=True), name="frontend")
 
 # Enable CORS
 app.add_middleware(

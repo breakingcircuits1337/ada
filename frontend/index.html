@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L.I.S.A. Command Center</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Google Fonts for Sci-Fi look -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- MediaPipe Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    
+    <!-- LiveKit Client SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+</head>
+<body>
+    <div class="overlay"></div>
+    <div class="scanlines"></div>
+
+    <div class="container">
+        <!-- Header / Status Bar -->
+        <header class="hud-header">
+            <div class="logo">
+                <span class="lisa-text" data-text="L.I.S.A.">L.I.S.A.</span>
+                <span class="sub-text">SYSTEM ONLINE</span>
+            </div>
+            <div class="status-indicators">
+                <div class="indicator">
+                    <span class="label">CPU</span>
+                    <div class="bar-container"><div class="bar" style="width: 45%"></div></div>
+                </div>
+                <div class="indicator">
+                    <span class="label">NET</span>
+                    <div class="bar-container"><div class="bar" style="width: 80%"></div></div>
+                </div>
+                <div class="indicator">
+                    <span class="label">LIVEKIT</span>
+                    <div class="status-light" id="connection-status"></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Grid -->
+        <main class="hud-grid">
+            
+            <!-- Left Panel: Visualizer / Agent Avatar -->
+            <section class="panel left-panel">
+                <div class="panel-header">VISUAL FEEDBACK</div>
+                <div class="panel-content visualizer-container">
+                    <div class="hologram-circle">
+                        <div class="ring"></div>
+                        <div class="ring"></div>
+                        <div class="ring"></div>
+                        <div class="core"></div>
+                    </div>
+                    <div id="agent-status-text">STANDBY</div>
+                </div>
+            </section>
+
+            <!-- Center Panel: Hand Tracking / Video Feed -->
+            <section class="panel center-panel">
+                <div class="panel-header">HAND TRACKING FEED</div>
+                <div class="panel-content video-container">
+                    <video id="input-video" class="input_video" autoplay playsinline muted></video>
+                    <canvas id="output-canvas" class="output_canvas"></canvas>
+                    <div class="gesture-overlay">
+                        DETECTED: <span id="gesture-result">NONE</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Panel: Chat / Logs -->
+            <section class="panel right-panel">
+                <div class="panel-header">COMMUNICATION LOG</div>
+                <div class="panel-content chat-container">
+                    <div id="chat-messages" class="chat-messages">
+                        <div class="message system">Initializing L.I.S.A protocols...</div>
+                    </div>
+                    <div class="chat-input-area">
+                        <input type="text" id="chat-input" placeholder="Type command...">
+                        <button id="send-btn">SEND</button>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Footer / Controls -->
+        <footer class="hud-footer">
+            <button id="connect-btn" class="hud-btn">INITIALIZE CONNECTION</button>
+            <button id="mic-btn" class="hud-btn disabled">TOGGLE MIC</button>
+            <div class="ticker-wrap">
+                <div class="ticker">
+                    SYSTEM INTEGRITY: 100% /// SECURE CONNECTION ESTABLISHED /// WAITING FOR INPUT /// HAND TRACKING MODULE: ACTIVE ///
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

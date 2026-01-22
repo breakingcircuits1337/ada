@@ -297,8 +297,6 @@ class ADA:
                     if isinstance(arg, ast.Constant):
                         args.append(arg.value)
                     else:
-                        # Fallback for complex types if needed, or error
-                        # For this MVP, we might just try to eval the arg strictly if it's a literal
                         try:
                             args.append(ast.literal_eval(arg))
                         except:
@@ -315,13 +313,16 @@ class ADA:
                              return "```tool_output\nError: Only literal keyword arguments are supported.\n```"
 
                 # Execute
-                f = io.StringIO()
-                with redirect_stdout(f):
-                    result = self.available_tools[func_name](*args, **kwargs)
-                
-                output = f.getvalue()
-                r = result if output == '' else output
-                return f'```tool_output\n{str(r).strip()}\n```'
+                try:
+                    f = io.StringIO()
+                    with redirect_stdout(f):
+                        result = self.available_tools[func_name](*args, **kwargs)
+                    
+                    output = f.getvalue()
+                    r = result if output == '' else output
+                    return f'```tool_output\n{str(r).strip()}\n```'
+                except Exception as e:
+                    return f"```tool_output\nError executing {func_name}: {e}\n```"
 
             except Exception as e:
                 return f"```tool_output\nError executing tool: {e}\n```"

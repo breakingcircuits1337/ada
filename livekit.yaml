@@ -1,0 +1,25 @@
+port: 7880
+bind: 0.0.0.0
+
+keys:
+  # API Key: Secret Secret
+  # This corresponds to LIVEKIT_API_KEY=devkey and LIVEKIT_API_SECRET=secret
+  devkey: secret
+
+redis:
+  address: redis:6379
+  username: ""
+  password: ""
+  db: 0
+
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 60000
+  use_external_ip: false 
+  # For local dev, we don't strictly need STUN/TURN if on same network, 
+  # but good to have defaults.
+  
+logging:
+  json: false
+  level: info

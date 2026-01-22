@@ -3,6 +3,7 @@ livekit-plugins-deepgram
 livekit-plugins-openai
 livekit-plugins-elevenlabs
 livekit-plugins-silero
+livekit-plugins-google
 python-dotenv
 fastapi
 uvicorn

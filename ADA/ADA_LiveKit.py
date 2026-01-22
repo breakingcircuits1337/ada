@@ -10,34 +10,37 @@ from livekit.agents import (
     WorkerOptions,
     cli,
     llm,
+    Agent,
+    AgentSession,
+    function_tool,
+    RunContext
 )
-from livekit.agents.voice_assistant import VoiceAssistant
-from livekit.plugins import deepgram, openai, silero, elevenlabs
+from livekit.plugins import deepgram, openai, silero, elevenlabs, google
 from livekit import rtc
 
 try:
-    from .WIDGETS import to_do_list, calendar_widget, email_client
+    from WIDGETS import to_do_list, calendar_widget, email_client
 except ImportError:
-    # Fallback if running from root directory context
-    from ADA.WIDGETS import to_do_list, calendar_widget, email_client
+    # Fallback if running from root directory context or if path needs adjustment
+    import sys
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from WIDGETS import to_do_list, calendar_widget, email_client
 
 # Load environment variables
 load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("ada-voice-agent")
+logger = logging.getLogger("lisa-voice-agent")
 
 # --- Configuration ---
-# You can switch models here
-STT_PROVIDER = "deepgram"  # or "openai"
-TTS_PROVIDER = "deepgram"  # or "elevenlabs", "openai"
-LLM_PROVIDER = "openai"    # or "anthropic" (if plugin installed)
+STT_PROVIDER = "deepgram"  # or "openai", "google"
+TTS_PROVIDER = "deepgram"  # or "elevenlabs", "openai", "google"
+LLM_PROVIDER = "gemini"    # or "anthropic", "openai"
 
 async def entrypoint(ctx: JobContext):
     """
-    The main entrypoint for the Voice Agent.
-    This function is called when a user connects to the room.
+    The main entrypoint for the Voice Agent (L.I.S.A.).
     """
     
     # 1. Connect to the room
@@ -47,86 +50,113 @@ async def entrypoint(ctx: JobContext):
 
     # 2. Initialize Components
     
-    # STT (Speech to Text)
+    # STT
     if STT_PROVIDER == "deepgram":
-        stt = deepgram.STT()
+        stt_plugin = deepgram.STT()
+    elif STT_PROVIDER == "google":
+        stt_plugin = google.STT()
     else:
-        stt = openai.STT()
+        stt_plugin = openai.STT()
 
-    # LLM (Language Model)
-    # Using GPT-4o for best reasoning
-    llm_plugin = openai.LLM(model="gpt-4o")
+    # LLM
+    if LLM_PROVIDER == "gemini":
+        # Use Gemini 2.0 Flash (or newer if available)
+        llm_plugin = google.LLM(model="gemini-2.0-flash-exp")
+    else:
+        llm_plugin = openai.LLM(model="gpt-4o")
 
-    # TTS (Text to Speech)
+    # TTS
     if TTS_PROVIDER == "deepgram":
-        tts = deepgram.TTS()
+        tts_plugin = deepgram.TTS()
     elif TTS_PROVIDER == "elevenlabs":
-        tts = elevenlabs.TTS()
+        tts_plugin = elevenlabs.TTS()
+    elif TTS_PROVIDER == "google":
+        tts_plugin = google.TTS()
     else:
-        tts = openai.TTS()
+        tts_plugin = openai.TTS()
         
-    # VAD (Voice Activity Detection)
-    vad = silero.VAD.load()
+    # VAD
+    vad_plugin = silero.VAD.load()
 
-    # 3. Create the Voice Assistant
-    agent = VoiceAssistant(
-        vad=vad,
-        stt=stt,
-        llm=llm_plugin,
-        tts=tts,
-        fnc_ctx=None, # We will add tools below
-    )
-
-    # 4. Define Tools (Equivalent to ADA_Local functions)
+    # 3. Define Tools
     
-    @agent.llm.ai_callable(description="Get the current system information")
-    async def get_system_info():
-        # In a real scenario, this might query the actual server or a remote agent
+    @function_tool
+    async def get_system_info(ctx: RunContext):
+        """Get the current system information"""
         return "System Status: Online. Running on Secure Server. All systems nominal."
 
-    @agent.llm.ai_callable(description="Set a timer")
-    async def set_timer(seconds: int):
-        # Note: This sets a timer on the server side/agent side. 
-        # To notify the user, the agent will speak when it's done.
+    @function_tool
+    async def set_timer(ctx: RunContext, seconds: int):
+        """Set a timer"""
         async def _timer():
             await asyncio.sleep(seconds)
-            # Interrupt current speech to announce timer
-            await agent.say(f"Timer for {seconds} seconds is up!", allow_interruptions=True)
+            # Timer completion notification would go here
+            logger.info(f"Timer for {seconds} seconds finished.")
         
         asyncio.create_task(_timer())
         return f"Timer set for {seconds} seconds."
 
-    @agent.llm.ai_callable(description="Add a task to the todo list")
-    async def add_todo_task(task: str):
+    @function_tool
+    async def add_todo_task(ctx: RunContext, task: str):
+        """Add a task to the todo list"""
         return to_do_list.add_task(task)
 
-    @agent.llm.ai_callable(description="Delete a task from the todo list")
-    async def delete_todo_task(task: str):
+    @function_tool
+    async def delete_todo_task(ctx: RunContext, task: str):
+        """Delete a task from the todo list"""
         return to_do_list.delete_task(task)
 
-    @agent.llm.ai_callable(description="List all todo tasks")
-    async def list_todo_tasks():
+    @function_tool
+    async def list_todo_tasks(ctx: RunContext):
+        """List all todo tasks"""
         return to_do_list.display_todo_list()
 
-    # 5. Start the Assistant
-    agent.start(ctx.room, participant)
+    # 4. Create the Agent
+    agent = Agent(
+        instructions="You are L.I.S.A. (Life Integrated System Architecture), an advanced AI command center assistant. You are professional, efficient, and slightly sci-fi in tone. Keep responses concise and authoritative.",
+        tools=[get_system_info, set_timer, add_todo_task, delete_todo_task, list_todo_tasks],
+    )
 
-    # 6. Initial Greeting
-    await agent.say("Hello Sir. ADA is connected via LiveKit. How can I help you today?", allow_interruptions=True)
+    # 5. Create the Session
+    session = AgentSession(
+        vad=vad_plugin,
+        stt=stt_plugin,
+        llm=llm_plugin,
+        tts=tts_plugin,
+    )
 
-    # 7. Listen for Data Packets (Chat Injection from REST API)
+    # 6. Start the Session
+    # This attaches the agent to the room and starts the pipeline
+    await session.start(agent=agent, room=ctx.room)
+
+    # 7. Initial Greeting
+    await session.generate_reply(instructions="Greet the Commander (user) as L.I.S.A. and confirm systems are online.")
+
+    # 8. Listen for Data Packets (Chat Injection and Hand Gestures)
     @ctx.room.on("data_received")
     def on_data_received(data_packet: rtc.DataPacket):
+        payload = data_packet.data.decode("utf-8")
+        
         if data_packet.topic == "chat_message":
-            message_text = data_packet.data.decode("utf-8")
-            logger.info(f"Received chat injection: {message_text}")
+            logger.info(f"Received chat injection: {payload}")
             
             # Inject into the conversation context
-            chat_ctx = agent.chat_ctx
-            chat_ctx.append(role="user", text=message_text)
+            chat_msg = llm.ChatMessage(role="user", content=payload)
+            session.chat_ctx.messages.append(chat_msg)
             
             # Trigger a response
-            asyncio.create_task(agent.say(f"I received a message: {message_text}", allow_interruptions=True))
+            asyncio.create_task(session.generate_reply())
+        
+        elif data_packet.topic == "gesture":
+            logger.info(f"Received gesture: {payload}")
+            
+            if payload == "Open_Palm":
+                asyncio.create_task(session.generate_reply(instructions="User raised hand (Open Palm). Ask if they need assistance."))
+            elif payload == "Closed_Fist":
+                asyncio.create_task(session.generate_reply(instructions="User gestured Closed Fist. Acknowledge holding position."))
+            elif payload == "Thumb_Up":
+                 asyncio.create_task(session.generate_reply(instructions="User gestured Thumb Up. Acknowledge confirmation."))
+
 
 if __name__ == "__main__":
     # Ensure standard keys are present
