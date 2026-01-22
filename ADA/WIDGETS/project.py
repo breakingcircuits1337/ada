@@ -1,11 +1,12 @@
 import os
 
-def create_folder(folder_name, chat_history_file):
+def create_folder(folder_name, chat_history_file="chat_history.txt"):
     """
     Creates a project folder and a text file to store chat history.
 
     Args:
         folder_name (str): The name of the project folder to create.
+        chat_history_file (str): The name of the chat history file. Defaults to "chat_history.txt".
     """
 
     try:

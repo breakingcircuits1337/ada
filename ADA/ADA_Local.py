@@ -7,7 +7,7 @@ import torch  # Import the torch library
 import re
 import time
 import os
-from .WIDGETS import system, timer, project, camera
+from .WIDGETS import system, timer, project, camera, to_do_list, calendar_widget, email_client
 
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 VOICE_ID = 'pFZP5JQG7iQjIQuC4Bku'
@@ -67,10 +67,50 @@ class ADA:
                 Args:
                     folder_name (str): The name of the project folder to create.
                 """
+
+            def todo.list():
+                """ Displays the current todo list """
+
+            def calendar.add(title, date_str, time_str, description=""):
+                """ 
+                Adds an event to the calendar. 
+                Args: 
+                    title (str): Event title
+                    date_str (str): YYYY-MM-DD
+                    time_str (str): HH:MM
+                    description (str): Optional details
+                """
+            
+            def calendar.list(date_str=None):
+                """ Lists events. Optional date_str (YYYY-MM-DD) to filter. """
+            
+            def calendar.delete(title):
+                """ Deletes an event by title. """
+
+            def email.send(to_email, subject, body):
+                """ Sends an email. """
+            
+            def email.read(limit=5):
+                """ Reads latest N emails. """
         ```
 
         User: {user_message}
         '''
+
+        self.available_tools = {
+            "camera.open": camera.open,
+            "system.info": system.info,
+            "timer.set": timer.set,
+            "project.create_folder": project.create_folder,
+            "todo.add": to_do_list.add_task,
+            "todo.delete": to_do_list.delete_task,
+            "todo.list": to_do_list.display_todo_list,
+            "calendar.add": calendar_widget.add_event,
+            "calendar.list": calendar_widget.list_events,
+            "calendar.delete": calendar_widget.delete_event,
+            "email.send": email_client.send_email,
+            "email.read": email_client.read_emails
+        }
 
         self.model_params = {
             'temperature': 0.1,
@@ -201,18 +241,90 @@ class ADA:
     def extract_tool_call(self, text):
         import io
         from contextlib import redirect_stdout
+        import shlex
 
         pattern = r"```tool_code\s*(.*?)\s*```"
         match = re.search(pattern, text, re.DOTALL)
         if match:
             code = match.group(1).strip()
-            # Capture stdout in a string buffer
-            f = io.StringIO()
-            with redirect_stdout(f):
-                result = eval(code)
-            output = f.getvalue()
-            r = result if output == '' else output
-            return f'```tool_output\n{str(r).strip()}\n```'''
+            
+            # Simple parsing of the function call
+            # Expecting format: function.name(arg1, arg2="value")
+            # This is a basic parser and might need robustness improvements for complex args
+            try:
+                # Extract function name
+                func_name_match = re.match(r"^([\w\.]+)\(", code)
+                if not func_name_match:
+                     return "```tool_output\nError: Could not parse function name.\n```"
+                
+                func_name = func_name_match.group(1)
+                
+                if func_name not in self.available_tools:
+                    return f"```tool_output\nError: Function '{func_name}' is not allowed or does not exist.\n```"
+                
+                # Extract arguments - this is a bit hacky for a full python parser, 
+                # but safer than eval. For complex args, consider ast.literal_eval
+                # or a proper parser. 
+                # For now, let's assume the LLM generates valid python call syntax 
+                # and we just want to run it IF it's in the whitelist.
+                # BUT avoiding eval means we have to parse args.
+                
+                # Alternative: Use eval but with a restricted globals/locals dict
+                # This is safer than raw eval but still has risks. 
+                # Best practice is to NOT use eval at all.
+                
+                # Let's use ast.parse to safely extract args
+                import ast
+                tree = ast.parse(code)
+                expr = tree.body[0]
+                if not isinstance(expr, ast.Expr) or not isinstance(expr.value, ast.Call):
+                     return "```tool_output\nError: Invalid function call syntax.\n```"
+                
+                call = expr.value
+                # Verify function name again from AST to be sure
+                call_func_name = ""
+                if isinstance(call.func, ast.Attribute):
+                    call_func_name = f"{call.func.value.id}.{call.func.attr}"
+                elif isinstance(call.func, ast.Name):
+                    call_func_name = call.func.id
+                
+                if call_func_name != func_name:
+                     return "```tool_output\nError: Function name mismatch.\n```"
+
+                # Prepare arguments
+                args = []
+                for arg in call.args:
+                    if isinstance(arg, ast.Constant):
+                        args.append(arg.value)
+                    else:
+                        # Fallback for complex types if needed, or error
+                        # For this MVP, we might just try to eval the arg strictly if it's a literal
+                        try:
+                            args.append(ast.literal_eval(arg))
+                        except:
+                             return "```tool_output\nError: Only literal arguments are supported.\n```"
+
+                kwargs = {}
+                for keyword in call.keywords:
+                    if isinstance(keyword.value, ast.Constant):
+                        kwargs[keyword.arg] = keyword.value.value
+                    else:
+                         try:
+                            kwargs[keyword.arg] = ast.literal_eval(keyword.value)
+                         except:
+                             return "```tool_output\nError: Only literal keyword arguments are supported.\n```"
+
+                # Execute
+                f = io.StringIO()
+                with redirect_stdout(f):
+                    result = self.available_tools[func_name](*args, **kwargs)
+                
+                output = f.getvalue()
+                r = result if output == '' else output
+                return f'```tool_output\n{str(r).strip()}\n```'
+
+            except Exception as e:
+                return f"```tool_output\nError executing tool: {e}\n```"
         return None
 
     async def tts(self):
