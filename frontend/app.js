@@ -6,6 +6,8 @@ const chatInput = document.getElementById('chat-input');
 const sendBtn = document.getElementById('send-btn');
 const chatMessages = document.getElementById('chat-messages');
 const connectionStatus = document.getElementById('connection-status');
+const cpuBar = document.getElementById('cpu-bar');
+const netBar = document.getElementById('net-bar');
 const gestureResult = document.getElementById('gesture-result');
 const inputVideo = document.getElementById('input-video');
 const outputCanvas = document.getElementById('output-canvas');
@@ -78,6 +80,14 @@ async function connectToLiveKit() {
             
             if (topic === "chat_message") {
                 addLog(`L.I.S.A: ${strData}`, "agent");
+            } else if (topic === "system_stats") {
+                try {
+                    const stats = JSON.parse(strData);
+                    if (cpuBar) cpuBar.style.width = `${stats.cpu}%`;
+                    if (netBar) netBar.style.width = `${stats.memory}%`; // Mapping memory to NET bar for now
+                } catch (e) {
+                    console.error("Failed to parse system stats", e);
+                }
             }
         });
 

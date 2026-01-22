@@ -1,6 +1,7 @@
 import asyncio
 import os
 import logging
+import json
 from dotenv import load_dotenv
 
 # LiveKit Imports
@@ -19,12 +20,12 @@ from livekit.plugins import deepgram, openai, silero, elevenlabs, google
 from livekit import rtc
 
 try:
-    from WIDGETS import to_do_list, calendar_widget, email_client
+    from WIDGETS import to_do_list, calendar_widget, email_client, system
 except ImportError:
     # Fallback if running from root directory context or if path needs adjustment
     import sys
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    from WIDGETS import to_do_list, calendar_widget, email_client
+    from WIDGETS import to_do_list, calendar_widget, email_client, system
 
 # Load environment variables
 load_dotenv()
@@ -83,7 +84,7 @@ async def entrypoint(ctx: JobContext):
     @function_tool
     async def get_system_info(ctx: RunContext):
         """Get the current system information"""
-        return "System Status: Online. Running on Secure Server. All systems nominal."
+        return system.info()
 
     @function_tool
     async def set_timer(ctx: RunContext, seconds: int):
@@ -132,7 +133,27 @@ async def entrypoint(ctx: JobContext):
     # 7. Initial Greeting
     await session.generate_reply(instructions="Greet the Commander (user) as L.I.S.A. and confirm systems are online.")
 
-    # 8. Listen for Data Packets (Chat Injection and Hand Gestures)
+    # 8. Start Background Tasks
+    async def broadcast_stats():
+        while True:
+            try:
+                stats = system.get_stats_dict()
+                payload = json.dumps(stats)
+                
+                # Send data packet to room
+                await ctx.room.local_participant.publish_data(
+                    payload.encode("utf-8"),
+                    reliable=True,
+                    topic="system_stats"
+                )
+            except Exception as e:
+                logger.error(f"Error broadcasting stats: {e}")
+            
+            await asyncio.sleep(2) # Broadcast every 2 seconds
+
+    asyncio.create_task(broadcast_stats())
+
+    # 9. Listen for Data Packets (Chat Injection and Hand Gestures)
     @ctx.room.on("data_received")
     def on_data_received(data_packet: rtc.DataPacket):
         payload = data_packet.data.decode("utf-8")
