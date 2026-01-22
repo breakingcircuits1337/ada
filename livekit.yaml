@@ -1,5 +1,4 @@
 port: 7880
-bind: 0.0.0.0
 
 keys:
   # API Key: Secret Secret
@@ -14,9 +13,9 @@ redis:
 
 rtc:
   tcp_port: 7881
-  port_range_start: 50000
-  port_range_end: 60000
-  use_external_ip: false 
+  udp_port: 7882
+  use_external_ip: false
+  node_ip: "127.0.0.1"
   # For local dev, we don't strictly need STUN/TURN if on same network, 
   # but good to have defaults.
   

@@ -1,10 +1,12 @@
 import platform
 import psutil
 import GPUtil
+from typing import Dict, Union
 
-def info():
+def info() -> str:
     """
     Gathers system information including CPU, RAM, and GPU details.
+    
     Returns:
         str: A formatted string summary of system stats.
     """
@@ -20,7 +22,7 @@ def info():
         if gpus:
             gpu = gpus[0]
             gpu_info = f"{gpu.name} ({gpu.load*100:.1f}%)"
-    except:
+    except Exception:
         pass
 
     summary = (
@@ -30,18 +32,20 @@ def info():
         f"GPU: {gpu_info}"
     )
     
-    print(summary) # Keep printing for console users
     return summary
 
-def get_stats_dict():
+def get_stats_dict() -> Dict[str, float]:
     """
     Returns a dictionary of current system stats for API/Broadcasting.
+    
+    Returns:
+        dict: {"cpu": float, "memory": float, "gpu": float}
     """
     try:
         gpus = GPUtil.getGPUs()
-        gpu_load = gpus[0].load * 100 if gpus else 0
-    except:
-        gpu_load = 0
+        gpu_load = gpus[0].load * 100 if gpus else 0.0
+    except Exception:
+        gpu_load = 0.0
         
     return {
         "cpu": psutil.cpu_percent(),
@@ -49,7 +53,5 @@ def get_stats_dict():
         "gpu": gpu_load
     }
 
-
-
 if __name__ == "__main__":
-    info()
+    print(info())

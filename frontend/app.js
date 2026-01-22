@@ -60,7 +60,7 @@ async function connectToLiveKit() {
         addLog("Token acquired. Connecting to LiveKit...", "system");
 
         // 2. Connect to Room
-        room = new LiveKitClient.Room({
+        room = new LivekitClient.Room({
             adaptiveStream: true,
             dynacast: true,
         });
@@ -75,7 +75,7 @@ async function connectToLiveKit() {
         addLog("L.I.S.A System Online. Voice Channel Active.", "system");
 
         // 3. Set up Event Listeners
-        room.on(LiveKitClient.RoomEvent.DataReceived, (payload, participant, kind, topic) => {
+        room.on(LivekitClient.RoomEvent.DataReceived, (payload, participant, kind, topic) => {
             const strData = new TextDecoder().decode(payload);
             
             if (topic === "chat_message") {
@@ -84,14 +84,14 @@ async function connectToLiveKit() {
                 try {
                     const stats = JSON.parse(strData);
                     if (cpuBar) cpuBar.style.width = `${stats.cpu}%`;
-                    if (netBar) netBar.style.width = `${stats.memory}%`; // Mapping memory to NET bar for now
+                    if (netBar) netBar.style.width = `${stats.memory}%`; // Mapping memory to RAM bar
                 } catch (e) {
                     console.error("Failed to parse system stats", e);
                 }
             }
         });
 
-        room.on(LiveKitClient.RoomEvent.ActiveSpeakersChanged, (speakers) => {
+        room.on(LivekitClient.RoomEvent.ActiveSpeakersChanged, (speakers) => {
            if (speakers.length > 0) {
                agentStatusText.innerText = "SPEAKING...";
                document.querySelector('.core').style.animationDuration = "0.5s";

@@ -8,3 +8,7 @@ python-dotenv
 fastapi
 uvicorn
 python-multipart
+psutil
+GPUtil
+opencv-python
+torchaudio

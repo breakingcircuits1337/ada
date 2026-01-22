@@ -296,36 +296,31 @@ class ADA:
                 for arg in call.args:
                     if isinstance(arg, ast.Constant):
                         args.append(arg.value)
-                    else:
-                        try:
-                            args.append(ast.literal_eval(arg))
-                        except:
-                             return "```tool_output\nError: Only literal arguments are supported.\n```"
-
+                    # Add simple list support if needed, e.g. for creating folders? 
+                    # For now, just constants (strings, numbers, bools, None)
+                    
+                # Prepare keyword arguments
                 kwargs = {}
                 for keyword in call.keywords:
                     if isinstance(keyword.value, ast.Constant):
                         kwargs[keyword.arg] = keyword.value.value
-                    else:
-                         try:
-                            kwargs[keyword.arg] = ast.literal_eval(keyword.value)
-                         except:
-                             return "```tool_output\nError: Only literal keyword arguments are supported.\n```"
 
                 # Execute
-                try:
-                    f = io.StringIO()
-                    with redirect_stdout(f):
-                        result = self.available_tools[func_name](*args, **kwargs)
+                func = self.available_tools[func_name]
+                
+                # Capture stdout
+                f = io.StringIO()
+                with redirect_stdout(f):
+                    result = func(*args, **kwargs)
+                
+                output = f.getvalue()
+                if result:
+                    output += str(result)
                     
-                    output = f.getvalue()
-                    r = result if output == '' else output
-                    return f'```tool_output\n{str(r).strip()}\n```'
-                except Exception as e:
-                    return f"```tool_output\nError executing {func_name}: {e}\n```"
+                return f"```tool_output\n{output}\n```"
 
             except Exception as e:
-                return f"```tool_output\nError executing tool: {e}\n```"
+                return f"```tool_output\nError executing {func_name}: {e}\n```"
         return None
 
     async def tts(self):
